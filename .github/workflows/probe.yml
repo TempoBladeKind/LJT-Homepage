@@ -1,0 +1,32 @@
+name: Probe Pages endpoints
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  deployments: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe API endpoints
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "--- GET /pages ---"
+          curl -s -o /tmp/getpages.txt -w "HTTP %{http_code}\n" -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/pages"
+          cat /tmp/getpages.txt; echo
+          echo "--- POST /pages (workflow) ---"
+          curl -s -o /tmp/postpages.txt -w "HTTP %{http_code}\n" -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/pages" -d '{"build_type":"workflow"}'
+          cat /tmp/postpages.txt; echo
+          echo "--- POST /pages (branch gh-pages) ---"
+          curl -s -o /tmp/postbranch.txt -w "HTTP %{http_code}\n" -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/pages" -d '{"source":{"branch":"gh-pages","path":"/"}}'
+          cat /tmp/postbranch.txt; echo
+          echo "--- PUT /environments/github-pages ---"
+          curl -s -o /tmp/env.txt -w "HTTP %{http_code}\n" -X PUT -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/environments/github-pages"
+          head -c 300 /tmp/env.txt; echo
+          echo "--- POST /deployments (github-pages) ---"
+          curl -s -o /tmp/dep.txt -w "HTTP %{http_code}\n" -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/deployments" -d '{"ref":"master","environment":"github-pages","required_contexts":[],"auto_merge":false}'
+          head -c 400 /tmp/dep.txt; echo

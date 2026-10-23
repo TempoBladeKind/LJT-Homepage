@@ -10,9 +10,9 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Delete stale gh-pages branch
-        run: git push origin --delete gh-pages || true
       - uses: actions/checkout@v7.0.1
+      - name: Delete stale gh-pages branch
+        run: git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" --delete gh-pages || true
       - uses: ruby/setup-ruby@v1.328.0
         with:
           ruby-version: '3.1'

@@ -1,4 +1,4 @@
-name: Probe gh-pages enablement
+name: Finalize verification
 on:
   workflow_dispatch:
 
@@ -7,9 +7,11 @@ permissions:
   pages: write
 
 jobs:
-  ghpages:
+  verify:
     runs-on: ubuntu-latest
     steps:
+      - name: Delete stale gh-pages branch
+        run: git push origin --delete gh-pages || true
       - uses: actions/checkout@v7.0.1
       - uses: ruby/setup-ruby@v1.328.0
         with:
@@ -19,24 +21,15 @@ jobs:
         run: bundle exec jekyll build --baseurl "/LJT-Homepage"
         env:
           JEKYLL_ENV: production
-      - name: Push built site to gh-pages branch
+      - name: List generated pages
         run: |
-          cd _site
-          git init
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b gh-pages
-          git add .
-          git commit -m "Built site from Actions"
-          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git"
-          git push -f origin gh-pages
-      - name: Check Pages site status
+          echo "--- HTML pages ---"
+          find _site -name '*.html' | sort
+          echo "--- collections ---"
+          find _site/publication _site/talks _site/portfolio _site/posts -type f 2>/dev/null | sort || true
+      - name: Check Pages status
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          sleep 8
-          echo "--- repo has_pages ---"
-          curl -s -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY" | grep -o '"has_pages":[a-z]*' || true
-          echo "--- GET /pages ---"
-          curl -s -o /tmp/pg.txt -w "HTTP %{http_code}\n" -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/pages"
-          head -c 500 /tmp/pg.txt; echo
+          curl -s -o /tmp/pg.txt -w "GET /pages HTTP %{http_code}\n" -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$GITHUB_REPOSITORY/pages"
+          head -c 400 /tmp/pg.txt; echo
